@@ -26,11 +26,11 @@ import {
   zip,
 } from '@nucypher/shared';
 import {
+  TEST_CHAIN_ID,
+  TEST_CONTRACT_ADDR,
   fakeDkgFlow,
   fakeSigner,
   fakeTDecFlow,
-  TEST_CHAIN_ID,
-  TEST_CONTRACT_ADDR,
 } from '@nucypher/test-utils';
 import { SpyInstance, vi } from 'vitest';
 
@@ -39,6 +39,10 @@ import {
   ContractConditionType,
   FunctionAbiProps,
 } from '../src/conditions/base/contract';
+import {
+  OwnsEmailConditionProps,
+  OwnsEmailConditionType,
+} from '../src/conditions/base/email';
 import {
   RpcConditionProps,
   RpcConditionType,
@@ -49,6 +53,7 @@ import {
   TimeConditionType,
 } from '../src/conditions/base/time';
 import { ConditionExpression } from '../src/conditions/condition-expr';
+import { USER_ACCESS_TOKEN_PARAM } from '../src/conditions/const';
 import { ERC721Balance } from '../src/conditions/predefined/erc721';
 import { ReturnValueTestProps } from '../src/conditions/shared';
 import { DkgClient, DkgRitual } from '../src/dkg';
@@ -220,6 +225,12 @@ export const testTimeConditionObj: TimeConditionProps = {
   },
   method: TimeConditionMethod,
   chain: TEST_CHAIN_ID,
+};
+
+export const testOwnsEmailConditionObj: OwnsEmailConditionProps = {
+  conditionType: OwnsEmailConditionType,
+  issuer: 'testIssuer',
+  parameters: [USER_ACCESS_TOKEN_PARAM],
 };
 
 export const testRpcConditionObj: RpcConditionProps = {

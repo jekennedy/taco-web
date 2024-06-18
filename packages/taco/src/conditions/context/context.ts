@@ -2,6 +2,7 @@ import { Context, Conditions as WASMConditions } from '@nucypher/nucypher-core';
 import { fromJSON, toJSON } from '@nucypher/shared';
 import { ethers } from 'ethers';
 
+import { OwnsEmailCondition } from '../base/email';
 import { CompoundConditionType } from '../compound-condition';
 import { Condition, ConditionProps } from '../condition';
 import { ConditionExpression } from '../condition-expr';
@@ -9,10 +10,15 @@ import {
   CONTEXT_PARAM_PREFIX,
   CONTEXT_PARAM_REGEXP,
   RESERVED_CONTEXT_PARAMS,
+  USER_ACCESS_TOKEN_PARAM,
   USER_ADDRESS_PARAM,
 } from '../const';
 
-import { TypedSignature, WalletAuthenticationProvider } from './providers';
+import {
+  OIDCAuthenticationProvider,
+  TypedSignature,
+  WalletAuthenticationProvider,
+} from './providers';
 
 export type CustomContextParam = string | number | boolean;
 export type ContextParam = CustomContextParam | TypedSignature;
@@ -22,6 +28,7 @@ const ERR_RESERVED_PARAM = (key: string) =>
 const ERR_INVALID_CUSTOM_PARAM = (key: string) =>
   `Custom parameter ${key} must start with ${CONTEXT_PARAM_PREFIX}`;
 const ERR_SIGNER_REQUIRED = `Signer required to satisfy ${USER_ADDRESS_PARAM} context variable in condition`;
+const ERR_ACCESS_TOKEN_REQUIRED = `Access token required to satisfy ${USER_ACCESS_TOKEN_PARAM} context variable in condition`;
 const ERR_MISSING_CONTEXT_PARAMS = (params: string[]) =>
   `Missing custom context parameter(s): ${params.join(', ')}`;
 const ERR_UNKNOWN_CONTEXT_PARAMS = (params: string[]) =>
@@ -29,6 +36,7 @@ const ERR_UNKNOWN_CONTEXT_PARAMS = (params: string[]) =>
 
 export class ConditionContext {
   private readonly walletAuthProvider?: WalletAuthenticationProvider;
+  private readonly oidcAuthenticationProvider?: OIDCAuthenticationProvider;
 
   constructor(
     private readonly provider: ethers.providers.Provider,
@@ -37,17 +45,25 @@ export class ConditionContext {
     private readonly signer?: ethers.Signer,
   ) {
     if (this.signer) {
-      this.walletAuthProvider = new WalletAuthenticationProvider(
-        this.provider,
-        this.signer,
-      );
+      if (condition instanceof OwnsEmailCondition) {
+        const emailCondition = condition as OwnsEmailCondition;
+        this.oidcAuthenticationProvider = new OIDCAuthenticationProvider(emailCondition.value.issuer);
+      } else {
+        this.walletAuthProvider = new WalletAuthenticationProvider(
+          this.provider,
+          this.signer,
+        );
+      }
     }
     this.validate();
   }
 
   private validate(): void {
     Object.keys(this.customParameters).forEach((key) => {
-      if (RESERVED_CONTEXT_PARAMS.includes(key)) {
+      if (
+        RESERVED_CONTEXT_PARAMS.includes(key) &&
+        key != USER_ACCESS_TOKEN_PARAM //TODO jek hacked this in because of confusion
+      ) {
         throw new Error(ERR_RESERVED_PARAM(key));
       }
       if (!key.startsWith(CONTEXT_PARAM_PREFIX)) {
@@ -104,6 +120,19 @@ export class ConditionContext {
         await this.walletAuthProvider.getOrCreateWalletSignature();
       // Remove from requested parameters
       requestedParameters.delete(USER_ADDRESS_PARAM);
+    }
+
+    if (requestedParameters.has(USER_ACCESS_TOKEN_PARAM)) {
+      if (!this.oidcAuthenticationProvider) {
+        throw new Error(ERR_ACCESS_TOKEN_REQUIRED);
+      }
+      parameters[USER_ACCESS_TOKEN_PARAM] =
+        await this.oidcAuthenticationProvider.getUserEmail(
+          this.customParameters[USER_ACCESS_TOKEN_PARAM] as string,
+        );
+
+      // Remove from requested parameters
+      requestedParameters.delete(USER_ACCESS_TOKEN_PARAM);
     }
 
     // Fill in custom parameters

@@ -2,6 +2,7 @@ import type { TypedDataSigner } from '@ethersproject/abstract-signer';
 import { ethers } from 'ethers';
 import { utils as ethersUtils } from 'ethers/lib/ethers';
 
+import { OidcService } from '../../providers';
 import { Eip712TypedData, FormattedTypedData } from '../../web3';
 
 export interface TypedSignature {
@@ -127,5 +128,46 @@ export class WalletAuthenticationProvider {
     const blockHash = (await this.provider.getBlock(blockNumber)).hash;
     const chainId = (await this.provider.getNetwork()).chainId;
     return { blockNumber, blockHash, chainId };
+  }
+}
+
+// Example implementation of an OIDCProvider for getting the user profile from the access token.
+// Initially, the client app would handle user authentication with the IdP,
+// to get the access token, and then pass that, along with the IdP vars, to this.
+// In a real world scenario, this would be called by the TACo nodes
+export class OIDCAuthenticationProvider {
+  private oidcService: OidcService;
+
+  constructor(
+    private readonly issuerUrl: string,
+  ) { 
+    this.oidcService = new OidcService(issuerUrl);    
+  }
+
+  public async getUserEmail(accessToken: string): Promise<string> {
+    if (!this.oidcService.isInitialized()) {
+      await this.oidcService.initialize();
+    }
+
+    try {
+      const userInfo = await this.oidcService.getUserInfo(accessToken);
+
+      // Verify we've got a valid response from the IdP
+      if (
+        typeof userInfo.email_verified !== 'boolean' ||
+        typeof userInfo.email !== 'string'
+      ) {
+        throw new Error('Could not get user profile info from the oidcService');
+      }
+
+      // We shouldn't continue if the user's email isn't verified
+      if (userInfo.email_verified == false) {
+        throw new Error("User's email address has not been verified");
+      }
+      return userInfo.email;
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      throw new Error('Failed to fetch user email');
+    }
   }
 }

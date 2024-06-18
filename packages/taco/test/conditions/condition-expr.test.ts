@@ -8,6 +8,7 @@ import {
   ContractCondition,
   ContractConditionProps,
 } from '../../src/conditions/base/contract';
+import { OwnsEmailCondition } from '../../src/conditions/base/email';
 import { RpcCondition, RpcConditionType } from '../../src/conditions/base/rpc';
 import {
   TimeCondition,
@@ -15,11 +16,15 @@ import {
 } from '../../src/conditions/base/time';
 import { CompoundCondition } from '../../src/conditions/compound-condition';
 import { ConditionExpression } from '../../src/conditions/condition-expr';
-import { USER_ADDRESS_PARAM } from '../../src/conditions/const';
+import {
+  USER_ACCESS_TOKEN_PARAM,
+  USER_ADDRESS_PARAM,
+} from '../../src/conditions/const';
 import { ERC721Balance } from '../../src/conditions/predefined/erc721';
 import {
   testContractConditionObj,
   testFunctionAbi,
+  testOwnsEmailConditionObj,
   testReturnValueTest,
   testRpcConditionObj,
   testTimeConditionObj,
@@ -54,6 +59,7 @@ describe('condition set', () => {
     contractConditionWithAbiObj,
   );
 
+  const emailCondition = new OwnsEmailCondition(testOwnsEmailConditionObj);
   const rpcCondition = new RpcCondition(testRpcConditionObj);
   const timeCondition = new TimeCondition(testTimeConditionObj);
   const compoundCondition = new CompoundCondition({
@@ -62,6 +68,7 @@ describe('condition set', () => {
       testContractConditionObj,
       testTimeConditionObj,
       testRpcConditionObj,
+      testOwnsEmailConditionObj,
       {
         operator: 'or',
         operands: [testTimeConditionObj, testContractConditionObj],
@@ -177,6 +184,7 @@ describe('condition set', () => {
       erc721Balance,
       contractConditionNoAbi,
       contractConditionWithAbi,
+      emailCondition,
       rpcCondition,
       timeCondition,
       compoundCondition,
@@ -398,6 +406,24 @@ describe('condition set', () => {
         ConditionExpression.fromJSON(conditionExprJson);
       expect(conditionExprFromJson).toBeDefined();
       expect(conditionExprFromJson.condition).toBeInstanceOf(RpcCondition);
+    });
+
+    it('email condition serialization', () => {
+      const conditionExpr = new ConditionExpression(emailCondition);
+      const conditionExprJson = conditionExpr.toJson();
+
+      expect(conditionExprJson).toContain('issuer');
+      expect(conditionExprJson).toContain(testOwnsEmailConditionObj.issuer);
+      expect(conditionExprJson).toContain('parameters');
+      expect(conditionExprJson).toContain(USER_ACCESS_TOKEN_PARAM);
+
+      const conditionExprFromJson =
+        ConditionExpression.fromJSON(conditionExprJson);
+
+      expect(conditionExprFromJson).toBeDefined();
+      expect(conditionExprFromJson.condition).toBeInstanceOf(
+        OwnsEmailCondition,
+      );
     });
 
     it('compound condition serialization', () => {

@@ -35,6 +35,19 @@ export const returnValueTestSchema = z.object({
 
 export type ReturnValueTestProps = z.infer<typeof returnValueTestSchema>;
 
+/*
+  // TODO is there any reason we'd need to test the email returned from the provider? 
+export const emailParamSchema = z.string().email();
+export const returnEmailValidationSchema = z.object({
+  comparator: z.enum(['==', '!=']),
+  email: emailParamSchema,
+});
+
+export type ReturnEmailValidationProps = z.infer<
+  typeof returnEmailValidationSchema
+>;
+*/
+
 const EthAddressSchema = z.string().regex(ETH_ADDRESS_REGEXP);
 const UserAddressSchema = z.literal(USER_ADDRESS_PARAM);
 export const EthAddressOrUserAddressSchema = z.union([

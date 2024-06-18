@@ -12,6 +12,7 @@ import {
   toBytes,
   toHexString,
 } from '@nucypher/taco';
+import { CustomContextParam } from '@nucypher/taco/src/conditions/context';
 import * as dotenv from 'dotenv';
 import { ethers } from 'ethers';
 
@@ -32,6 +33,16 @@ if (!consumerPrivateKey) {
   throw new Error('CONSUMER_PRIVATE_KEY is not set.');
 }
 
+const oidcIssuer = process.env.OIDC_ISSUER;
+if (!oidcIssuer) {
+  throw new Error('OIDC_ISSUER is not set.');
+}
+
+const oidcAccessTokenTest = process.env.OIDC_ACCESS_TOKEN_TEST;
+if (!oidcAccessTokenTest) {
+  throw new Error('OIDC_ACCESS_TOKEN_TEST is not set.');
+}
+
 const domain = process.env.DOMAIN || domains.TESTNET;
 const ritualId = parseInt(process.env.RITUAL_ID || '0');
 const provider = new ethers.providers.JsonRpcProvider(rpcProviderUrl);
@@ -49,25 +60,17 @@ const encryptToBytes = async (messageString: string) => {
   const message = toBytes(messageString);
   console.log(format('Encrypting message ("%s") ...', messageString));
 
-  const hasPositiveBalance = new conditions.base.rpc.RpcCondition({
-    chain: 80002,
-    method: 'eth_getBalance',
-    parameters: [':userAddress', 'latest'],
-    returnValueTest: {
-      comparator: '>',
-      value: 0,
-    },
+  const ownsEmail = new conditions.base.email.OwnsEmailCondition({
+    issuer: oidcIssuer,
+    parameters: [':accessToken'],
   });
-  console.assert(
-    hasPositiveBalance.requiresSigner(),
-    'Condition requires signer',
-  );
+  console.assert(ownsEmail.requiresSigner(), 'Condition requires signer');
 
   const messageKit = await encrypt(
     provider,
     domain,
     message,
-    hasPositiveBalance,
+    ownsEmail,
     ritualId,
     encryptorSigner,
   );
@@ -77,19 +80,20 @@ const encryptToBytes = async (messageString: string) => {
 
 const decryptFromBytes = async (encryptedBytes: Uint8Array) => {
   const consumerSigner = new ethers.Wallet(consumerPrivateKey);
-  console.log(
-    "\nConsumer signer's address:",
-    await consumerSigner.getAddress(),
-  );
+  console.log("\nConsumer signer's access token:", oidcAccessTokenTest);
 
   const messageKit = ThresholdMessageKit.fromBytes(encryptedBytes);
   console.log('Decrypting message ...');
+  const customParameters: Record<string, CustomContextParam> = {
+    ':accessToken': oidcAccessTokenTest,
+  };
   return decrypt(
     provider,
     domain,
     messageKit,
     getPorterUri(domain),
     consumerSigner,
+    customParameters,
   );
 };
 

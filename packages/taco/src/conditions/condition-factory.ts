@@ -3,6 +3,11 @@ import {
   ContractConditionProps,
   ContractConditionType,
 } from './base/contract';
+import {
+  OwnsEmailCondition,
+  OwnsEmailConditionProps,
+  OwnsEmailConditionType,
+} from './base/email';
 import { RpcCondition, RpcConditionProps, RpcConditionType } from './base/rpc';
 import {
   TimeCondition,
@@ -26,6 +31,8 @@ export class ConditionFactory {
         return new RpcCondition(props as RpcConditionProps);
       case TimeConditionType:
         return new TimeCondition(props as TimeConditionProps);
+      case OwnsEmailConditionType:
+        return new OwnsEmailCondition(props as OwnsEmailConditionProps);
       case ContractConditionType:
         return new ContractCondition(props as ContractConditionProps);
       case CompoundConditionType:

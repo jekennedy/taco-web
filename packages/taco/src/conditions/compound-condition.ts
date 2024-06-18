@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { contractConditionSchema } from './base/contract';
+import { ownsEmailConditionSchema } from './base/email';
 import { rpcConditionSchema } from './base/rpc';
 import { timeConditionSchema } from './base/time';
 import { Condition, ConditionProps } from './condition';
@@ -20,6 +21,7 @@ export const compoundConditionSchema: z.ZodSchema = z
           z.union([
             rpcConditionSchema,
             timeConditionSchema,
+            ownsEmailConditionSchema,
             contractConditionSchema,
             compoundConditionSchema,
           ]),
